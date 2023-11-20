@@ -1,43 +1,57 @@
 const fs = require('fs');
 const path = require('path');
 
-const fileRoute = path.format(path.parse(__dirname)) + path.sep + 'test';
-const files = fs.readdirSync(fileRoute);
+const workingDir = path.join(__dirname, 'test');
+const videoDir = path.join(workingDir, 'video');
+const capturedDir = path.join(workingDir, 'captured');
+const duplicatedDir = path.join(workingDir, 'duplicated');
+const folderArr = [videoDir, capturedDir, duplicatedDir];
+
+const files = fs.readdirSync(workingDir);
+
+folderArr.forEach((folderRoute) => {
+    !fs.existsSync(folderRoute) && fs.mkdirSync(folderRoute);
+});
+
+
 files.forEach((fileName) => {
-    const videoExtName = ['.mp4', '.mov'];
-    const capturedExtName = ['.png', '.aae'];
-    // mp4, mov 확장자를 가진 파일은 Video 디렉토리로 파일 이동
-    if(videoExtName.includes(path.extname(fileName))) {
-        const videoFolderRoute = fileRoute + path.sep + 'video';
-        if(!fs.existsSync(videoFolderRoute)){
-            fs.mkdirSync(videoFolderRoute);
-        }
-        fs.rename(fileRoute + path.sep + fileName, videoFolderRoute + path.sep + fileName, (error) => {
-            console.log(error);
-        });
+    if(isVideoFile(fileName)) {
+        move(fileName, videoDir);
     }
 
-    // png, aae 확장자를 가진 파일은 captured 디렉토리로 파일 이동
-    else if (capturedExtName.includes(path.extname(fileName))) {
-        const capturedFolderRoute = fileRoute + path.sep + 'captured';
-        if(!fs.existsSync(capturedFolderRoute)){
-            fs.mkdirSync(capturedFolderRoute);
-        }
-        fs.rename(fileRoute + path.sep + fileName, capturedFolderRoute + path.sep + fileName, (error) => {
-            console.log(error);
-        });
+    else if (isCapturedFile(fileName)) {
+        move(fileName, capturedDir);
     }
-
-    // jpg 확장자를 가지며, IMG_ 라는 파일명으로 시작하고 E라는 알파벳이 없는 경우, duplicated 디렉토리로 파일 이동
-    else if ((path.extname(fileName) === '.jpg') 
-            && (path.basename(fileName, '.jpg').startsWith('IMG_'))
-            && !((path.basename(fileName, '.jpg')).includes('E'))){
-        const duplicatedFolderRoute = fileRoute + path.sep + 'duplicated';
-        if(!fs.existsSync(duplicatedFolderRoute)){
-            fs.mkdirSync(duplicatedFolderRoute);
-        }
-        fs.rename(fileRoute + path.sep + fileName, duplicatedFolderRoute + path.sep + fileName, (error) => {
-            console.log(error);
-        });
+    else if (isDuplicatedFile(fileName)){
+        move(fileName, duplicatedDir)
     }
 });
+
+function isVideoFile(file) {
+    const regExp = /(mp4|mov)$/gm;
+    return !!file.match(regExp);
+}
+
+function isCapturedFile(file) {
+    const regExp = /(png|aae)$/gm;
+    return !!file.match(regExp);
+}
+
+function isDuplicatedFile(file) {
+    if(!file.startsWith('IMG_') || file.startsWith('IMG_E')) {
+        return false;
+    }
+
+    const edited = `IMG_E${file.split('_')[1]}`;
+    const found = files.find((f) => f.includes(edited));
+    return !!found;
+}
+
+function move(file, targetDir){
+    console.info(`move ${file} to ${path.basename(targetDir)}`);
+    const oldPath = path.join(workingDir, file);
+    const newPath = path.join(targetDir, file);
+    fs.promises
+      .rename(oldPath, newPath)
+      .catch(console.error);
+}
